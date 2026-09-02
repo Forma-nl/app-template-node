@@ -59,10 +59,20 @@ jobs:
         with:
           image-ref: ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
           format: table
-          # Warns by default and fails only on what the app has been set to
-          # block on. A scanner that fails the build on every medium finding
-          # gets switched off within a week, which is worse than warning.
-          exit-code: '1'
+          # Blocking is a separate switch from what is looked for, because
+          # they are separate decisions and conflating them is dangerous.
+          #
+          # `TRIVY_SEVERITY` says what to look for. Narrowing it to HIGH does
+          # not make the scan more permissive -- it makes CRITICAL findings
+          # stop being reported at all, which is the opposite of what anyone
+          # setting it means.
+          #
+          # `TRIVY_BLOCK` says whether a finding stops the deploy. Set it to
+          # `false` when a base image ships an unfixable advisory and the
+          # alternative is not shipping at all. The scan still runs and the
+          # findings are still in the log, so it is a decision you can see
+          # rather than a scanner that went quiet.
+          exit-code: ${{ vars.TRIVY_BLOCK == 'false' && '0' || '1' }}
           ignore-unfixed: true
           severity: ${{ vars.TRIVY_SEVERITY || 'CRITICAL' }}
 
